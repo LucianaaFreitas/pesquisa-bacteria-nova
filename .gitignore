@@ -1,0 +1,14 @@
+# Dados hiperespectrais (manter só localmente)
+dados/
+hsi_original/
+
+# Ambiente Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Sistema / arquivos locais
+.DS_Store
+*.doc
