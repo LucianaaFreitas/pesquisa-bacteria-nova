@@ -1,0 +1,930 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Relatório da Análise Hiperespectral Bacteriana</title>
+  <style>
+    :root {
+      --bg: #f6f4ef;
+      --paper: #ffffff;
+      --ink: #202124;
+      --muted: #62656a;
+      --line: #ded8ce;
+      --accent: #1f5f5b;
+      --accent-2: #8a4b2a;
+      --soft: #eef4f2;
+      --warn: #fff4df;
+      --good: #edf6ee;
+      --bad: #f8eeee;
+      --code: #f3f0ea;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.58;
+    }
+
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 20px 56px;
+    }
+
+    header {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      padding: 36px;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      color: var(--accent);
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      font-size: .78rem;
+      margin: 0 0 10px;
+    }
+
+    h1, h2, h3 {
+      line-height: 1.2;
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.3rem);
+      letter-spacing: -.04em;
+      max-width: 920px;
+    }
+
+    h2 {
+      font-size: 1.55rem;
+      margin-bottom: 14px;
+      padding-top: 4px;
+    }
+
+    h3 {
+      font-size: 1.05rem;
+      margin-bottom: 8px;
+      color: var(--accent);
+    }
+
+    p {
+      margin: 0 0 12px;
+    }
+
+    .lead {
+      color: var(--muted);
+      font-size: 1.08rem;
+      max-width: 900px;
+      margin-top: 18px;
+    }
+
+    .section {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      padding: 28px;
+      margin-top: 22px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid.cols-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.cols-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      padding: 18px;
+      background: #fbfaf7;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 1.8rem;
+      line-height: 1;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: .92rem;
+    }
+
+    .note {
+      border-left: 4px solid var(--accent);
+      background: var(--soft);
+      padding: 14px 16px;
+      margin: 14px 0;
+    }
+
+    .warning {
+      border-left-color: var(--accent-2);
+      background: var(--warn);
+    }
+
+    .pipeline {
+      counter-reset: step;
+      display: grid;
+      gap: 14px;
+    }
+
+    .step {
+      border: 1px solid var(--line);
+      padding: 18px 18px 18px 58px;
+      position: relative;
+      background: #fbfaf7;
+    }
+
+    .step::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      left: 18px;
+      top: 18px;
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-weight: 700;
+      border-radius: 50%;
+    }
+
+    code, .formula {
+      background: var(--code);
+      border: 1px solid #e4ded4;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .92em;
+    }
+
+    .formula {
+      display: block;
+      padding: 12px;
+      margin: 10px 0;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: .92rem;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #efe9de;
+      color: #282421;
+    }
+
+    tr:nth-child(even) td {
+      background: #fbfaf7;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fbfaf7;
+      font-size: .8rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .tag.good {
+      background: var(--good);
+      color: #275c2f;
+      border-color: #c9e4cd;
+    }
+
+    .tag.bad {
+      background: var(--bad);
+      color: #8a2d2d;
+      border-color: #e7caca;
+    }
+
+    figure {
+      margin: 18px 0 0;
+      border: 1px solid var(--line);
+      background: #fbfaf7;
+      padding: 12px;
+    }
+
+    figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: white;
+      border: 1px solid #ebe4d9;
+    }
+
+    figcaption {
+      color: var(--muted);
+      font-size: .88rem;
+      margin-top: 8px;
+    }
+
+    ul {
+      margin: 8px 0 0 20px;
+      padding: 0;
+    }
+
+    li {
+      margin: 6px 0;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .small {
+      font-size: .9rem;
+      color: var(--muted);
+    }
+
+    .conclusion {
+      border: 2px solid var(--accent);
+      background: #f8fbfa;
+    }
+
+    @media (max-width: 850px) {
+      .grid.cols-2,
+      .grid.cols-3,
+      .split {
+        grid-template-columns: 1fr;
+      }
+
+      header,
+      .section {
+        padding: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <p class="eyebrow">Relatório técnico e análise dos resultados</p>
+      <h1>Pipeline hiperespectral para análise de perfis bacterianos</h1>
+      <p class="lead">
+        Este documento resume o trabalho feito até o momento: processamento físico das imagens
+        hiperespectrais, extração da região de interesse, normalização, redução de dimensionalidade,
+        clusterização não supervisionada e validação exploratória usando amostras ATCC resistentes e
+        amostras sensíveis adicionadas apenas na etapa de avaliação.
+      </p>
+    </header>
+
+    <section class="section">
+      <h2>Resumo Executivo</h2>
+      <div class="grid cols-3">
+        <div class="metric">
+          <strong>19</strong>
+          <span>imagens/colônias processadas</span>
+        </div>
+        <div class="metric">
+          <strong>288.179</strong>
+          <span>pixels espectrais extraídos da ROI</span>
+        </div>
+        <div class="metric">
+          <strong>206</strong>
+          <span>bandas por pixel nos CSVs processados</span>
+        </div>
+      </div>
+      <div class="note">
+        <p>
+          O fluxo principal atual é <strong>não supervisionado</strong>: os rótulos não entram no
+          Min-Max, no PCA, na escolha de <code>k</code> nem no K-Means. Eles são usados depois, para
+          interpretar os clusters e validar se a separação obtida faz sentido biologicamente.
+        </p>
+      </div>
+      <p>
+        O melhor resultado exploratório até agora aparece na validação em que <code>554A_240506-160433</code>
+        e <code>559_240506-160951</code> são marcadas como sensíveis apenas para avaliação externa.
+        Nessa configuração, o modelo com <code>k=2</code> separou bem dois perfis: um cluster majoritariamente
+        sensível e outro majoritariamente resistente/ATCC.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>Base de Dados Usada</h2>
+      <div class="grid cols-2">
+        <div>
+          <h3>Amostras conhecidas</h3>
+          <p>
+            O arquivo <code>dados/rotulos.csv</code> contém 19 imagens. Três são ATCC conhecidas como
+            resistentes: <code>ATCC13</code>, <code>ATCC16</code> e <code>ATCC27</code>. As demais aparecem como
+            desconhecidas no rótulo original.
+          </p>
+        </div>
+        <div>
+          <h3>Validação sensível extra</h3>
+          <p>
+            Para testar se os clusters correspondiam a perfis biológicos, foram feitas validações
+            adicionais marcando algumas amostras como sensíveis somente na avaliação. O melhor ensaio
+            foi com <code>554A</code> e <code>559</code>.
+          </p>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Grupo</th>
+            <th>Quantidade</th>
+            <th>Uso no projeto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>ATCC resistentes</td>
+            <td>3 imagens / 46.987 pixels</td>
+            <td>Referência pós-clustering para interpretar o perfil resistente.</td>
+          </tr>
+          <tr>
+            <td>Desconhecidas no rótulo original</td>
+            <td>16 imagens / 241.192 pixels</td>
+            <td>Entram no agrupamento sem supervisão, junto com ATCC.</td>
+          </tr>
+          <tr>
+            <td>Sensíveis extras 554A e 559</td>
+            <td>2 imagens / 30.402 pixels</td>
+            <td>Usadas apenas para validação externa, não para treinar.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Pipeline Desenvolvido</h2>
+      <div class="pipeline">
+        <article class="step">
+          <h3>Leitura dos cubos hiperespectrais</h3>
+          <p>
+            O script <code>processamento.py</code> percorre <code>dados/img_original</code>, localiza as capturas
+            <code>.hdr/.raw</code> e carrega a imagem principal junto com as referências <code>DARKREF</code> e
+            <code>WHITEREF</code>. Cada pixel da colônia não é apenas uma cor: ele é um vetor com intensidades
+            em várias bandas do espectro.
+          </p>
+        </article>
+
+        <article class="step">
+          <h3>Calibração radiométrica</h3>
+          <p>
+            A calibração transforma a imagem bruta do sensor em reflectância comparável. A referência
+            escura mede o sinal de fundo do sensor, enquanto a referência branca mede a resposta sob
+            iluminação máxima conhecida.
+          </p>
+          <span class="formula">Reflectância = (Imagem - Média_Escura) / (Média_Branca - Média_Escura)</span>
+          <p>
+            Isso reduz diferenças causadas por variação de lâmpada, exposição, ruído eletrônico e
+            sensibilidade do detector. A média é calculada por banda, porque cada comprimento de onda
+            pode responder de forma diferente. O resultado é limitado a <code>[0, 1]</code> para evitar valores
+            fisicamente incoerentes após ruído ou saturação.
+          </p>
+        </article>
+
+        <article class="step">
+          <h3>Recorte das bandas ruidosas</h3>
+          <p>
+            Foram removidas 25 bandas no início e 25 no fim do cubo. As extremidades do espectro costumam
+            ter menor relação sinal-ruído, pois o sensor e a iluminação são menos estáveis nessas regiões.
+            O resultado prático salvo nos CSVs foi de <strong>206 bandas por pixel</strong>.
+          </p>
+          <p>
+            Esse corte evita que bandas instáveis contaminem o PCA e o K-Means. Em análise hiperespectral,
+            uma banda ruim pode alterar distâncias entre pixels mesmo sem representar diferença biológica.
+          </p>
+        </article>
+
+        <article class="step">
+          <h3>Transformada de Hough Circular e ROI</h3>
+          <p>
+            A colônia é circular, então a Transformada de Hough Circular foi usada para localizar o disco
+            da amostra. Antes dela, o script cria um RGB sintético, converte para escala de cinza,
+            equaliza o histograma e aplica Gaussian blur <code>(7, 7)</code> com <code>sigma=1.5</code>. Isso
+            deixa a borda mais contínua e reduz textura interna que poderia gerar falsos círculos.
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Parâmetro</th>
+                <th>Valor usado</th>
+                <th>Por que foi usado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>bandas_rgb</code></td>
+                <td><code>(180, 120, 70)</code>, ajustadas após o corte</td>
+                <td>Escolhem bandas com contraste visual suficiente para destacar a colônia.</td>
+              </tr>
+              <tr>
+                <td><code>dp</code></td>
+                <td><code>1.4</code></td>
+                <td>Usa acumulador um pouco mais grosseiro que a imagem original, reduzindo sensibilidade a ruídos pequenos.</td>
+              </tr>
+              <tr>
+                <td><code>min_dist</code></td>
+                <td><code>59</code></td>
+                <td>Impede múltiplas detecções quase iguais para a mesma colônia.</td>
+              </tr>
+              <tr>
+                <td><code>param1</code></td>
+                <td><code>170</code></td>
+                <td>Limiar alto do Canny; prioriza bordas fortes e descarta bordas fracas do ágar ou ruído.</td>
+              </tr>
+              <tr>
+                <td><code>param2</code></td>
+                <td><code>30</code></td>
+                <td>Exige votos suficientes no acumulador para aceitar o círculo, deixando a detecção mais limpa.</td>
+              </tr>
+              <tr>
+                <td><code>min_radius/max_radius</code></td>
+                <td>20% a 48% do menor eixo</td>
+                <td>Restringe a busca ao tamanho esperado da colônia e evita círculos absurdos.</td>
+              </tr>
+              <tr>
+                <td><code>shrink_radius_px</code></td>
+                <td><code>20</code> pixels</td>
+                <td>Recua a ROI para o miolo da colônia, removendo borda, halo e interferência do meio de cultura.</td>
+              </tr>
+            </tbody>
+          </table>
+        </article>
+
+        <article class="step">
+          <h3>Exportação dos espectros</h3>
+          <p>
+            A máscara circular transforma cada cubo 3D em uma matriz 2D: linhas são pixels da ROI e colunas
+            são bandas. Foram gerados <code>espectros.csv</code> e <code>mascara_roi.npy</code> para cada imagem.
+            Essa organização permite aplicar algoritmos de aprendizado de máquina diretamente sobre os
+            vetores espectrais.
+          </p>
+        </article>
+
+        <article class="step">
+          <h3>Normalização Min-Max global</h3>
+          <p>
+            A normalização Min-Max coloca cada banda na escala <code>[0, 1]</code> usando o mínimo e o máximo
+            globais daquela banda. A fórmula é:
+          </p>
+          <span class="formula">X_norm = (X - min_global_banda) / (max_global_banda - min_global_banda)</span>
+          <p>
+            O ponto central é que a normalização foi global, não por imagem. Assim, a escala de uma placa
+            continua comparável à escala das outras. Se cada imagem fosse normalizada isoladamente, uma
+            colônia fraca poderia parecer artificialmente tão intensa quanto uma colônia forte.
+          </p>
+        </article>
+
+        <article class="step">
+          <h3>Redução da dimensionalidade com PCA</h3>
+          <p>
+            O PCA comprime as bandas em componentes principais que concentram a maior parte da variância.
+            Foi usado <code>n_components=0.95</code>, isto é, manter componentes suficientes para preservar 95%
+            da variância. Isso reduz redundância entre bandas vizinhas, melhora o custo computacional e
+            diminui a maldição da dimensionalidade.
+          </p>
+          <p>
+            Conceitualmente, o PCA cria novos eixos. O primeiro eixo explica a maior variação dos dados,
+            o segundo explica a maior parte do que restou, e assim por diante. O K-Means foi treinado nesse
+            espaço reduzido, mas as curvas médias de clusters continuam interpretáveis no espaço de bandas.
+          </p>
+        </article>
+
+        <article class="step">
+          <h3>K-Means, escolha de k e interpretação pós-clustering</h3>
+          <p>
+            O K-Means agrupa pixels por proximidade no espaço PCA. Foram avaliados <code>k=2</code> até
+            <code>k=10</code> em uma subamostra de 10.000 pixels. A inércia mede compactação interna; o
+            silhouette mede separação entre grupos. O critério automático ficou com o melhor silhouette.
+          </p>
+          <p>
+            A interpretação biológica vem depois: como as ATCC são resistentes, observa-se em quais clusters
+            os pixels ATCC caem. Esses clusters passam a ser tratados como perfil semelhante ao resistente.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Resultados Principais</h2>
+      <div class="split">
+        <div>
+          <h3>Escolha de k</h3>
+          <p>
+            Na análise global não supervisionada, o maior silhouette foi em <code>k=2</code>, com
+            <strong>0,5687</strong>. O cotovelo apontou <code>k=5</code>, mas o critério configurado no pipeline
+            foi silhouette; por isso o modelo principal ficou com dois clusters.
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Configuração</th>
+                <th>Resultado</th>
+                <th>Leitura</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Global automático</td>
+                <td><code>k=2</code>, silhouette 0,5687</td>
+                <td>Separação mais simples e mais estável entre dois perfis dominantes.</td>
+              </tr>
+              <tr>
+                <td>Cotovelo</td>
+                <td><code>k=5</code></td>
+                <td>Sugere subestruturas, mas não foi o critério final configurado.</td>
+              </tr>
+              <tr>
+                <td>Teste fixo</td>
+                <td><code>k=4</code>, silhouette 0,5267</td>
+                <td>Fragmenta os perfis; útil para explorar subgrupos, pior como separação principal.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <figure>
+          <img src="dados/analise_perfis_validacao_sensiveis_554A_559/figuras/0001_escolha_k.png" alt="Gráfico de escolha de k por cotovelo e silhouette">
+          <figcaption>Escolha de k na análise não supervisionada com validação sensível 554A/559.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Interpretação dos Clusters com ATCC</h2>
+      <p>
+        No modelo principal com <code>k=2</code>, o perfil médio ATCC ficou concentrado em
+        <strong>94,18% no cluster 1</strong> e <strong>5,82% no cluster 0</strong>. Portanto, o cluster 1 foi
+        interpretado como o perfil mais semelhante às resistentes ATCC.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Amostra ATCC</th>
+            <th>Cluster dominante</th>
+            <th>Fração no cluster 1</th>
+            <th>Leitura</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>ATCC13_240506-161053</td>
+            <td>1</td>
+            <td>83,33%</td>
+            <td>Resistente, mas com heterogeneidade maior que as outras ATCC.</td>
+          </tr>
+          <tr>
+            <td>ATCC16_240506-161158</td>
+            <td>1</td>
+            <td>99,96%</td>
+            <td>Perfil extremamente concentrado no cluster resistente.</td>
+          </tr>
+          <tr>
+            <td>ATCC27_240506-161129</td>
+            <td>1</td>
+            <td>99,25%</td>
+            <td>Perfil muito semelhante ao padrão resistente.</td>
+          </tr>
+        </tbody>
+      </table>
+      <figure>
+        <img src="dados/analise_perfis_validacao_sensiveis_554A_559/figuras/0002_mosaico_clusters_k_2.png" alt="Mosaico de clusters k=2">
+        <figcaption>Mosaico espacial dos clusters com k=2. A distribuição espacial ajuda a verificar se o agrupamento é coerente dentro da colônia.</figcaption>
+      </figure>
+    </section>
+
+    <section class="section">
+      <h2>Validação com Sensíveis 554A e 559</h2>
+      <p>
+        Esta foi a validação externa mais informativa. As amostras <code>554A</code> e <code>559</code> foram
+        adicionadas como sensíveis somente na etapa de métrica. O resultado indica que o cluster 0 se
+        comportou como perfil sensível, enquanto o cluster 1 se comportou como perfil resistente/ATCC.
+      </p>
+      <div class="grid cols-3">
+        <div class="metric">
+          <strong>0,668</strong>
+          <span>ARI da validação 554A/559</span>
+        </div>
+        <div class="metric">
+          <strong>0,549</strong>
+          <span>NMI da validação 554A/559</span>
+        </div>
+        <div class="metric">
+          <strong>90,90%</strong>
+          <span>pureza global dos clusters</span>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Cluster</th>
+            <th>Classe majoritária</th>
+            <th>Composição</th>
+            <th>Interpretação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>0</td>
+            <td><span class="tag good">sensível</span></td>
+            <td>90,66% sensível / 9,34% resistente</td>
+            <td>Cluster associado ao perfil sensível nas amostras 554A e 559.</td>
+          </tr>
+          <tr>
+            <td>1</td>
+            <td><span class="tag good">resistente</span></td>
+            <td>91,04% resistente / 8,96% sensível</td>
+            <td>Cluster associado ao perfil resistente das ATCC.</td>
+          </tr>
+        </tbody>
+      </table>
+      <table>
+        <thead>
+          <tr>
+            <th>Amostra rotulada na validação</th>
+            <th>Rótulo usado só na validação</th>
+            <th>Cluster dominante</th>
+            <th>Pureza interna</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>554A_240506-160433</td>
+            <td>sensível</td>
+            <td>0</td>
+            <td>89,98%</td>
+          </tr>
+          <tr>
+            <td>559_240506-160951</td>
+            <td>sensível</td>
+            <td>0</td>
+            <td>80,38%</td>
+          </tr>
+          <tr>
+            <td>ATCC13_240506-161053</td>
+            <td>resistente</td>
+            <td>1</td>
+            <td>83,33%</td>
+          </tr>
+          <tr>
+            <td>ATCC16_240506-161158</td>
+            <td>resistente</td>
+            <td>1</td>
+            <td>99,96%</td>
+          </tr>
+          <tr>
+            <td>ATCC27_240506-161129</td>
+            <td>resistente</td>
+            <td>1</td>
+            <td>99,25%</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <p>
+          O ARI de 0,668 indica concordância relevante entre clusters e classes conhecidas, acima do acaso.
+          O NMI de 0,549 mostra compartilhamento moderado de informação entre os rótulos externos e os
+          clusters. A pureza global de 90,90% mostra que, quando olhamos os pixels rotulados, cada cluster
+          tem uma classe dominante clara.
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Ranking de Similaridade com ATCC</h2>
+      <p>
+        Além de validar clusters, o pipeline calcula a distância entre a assinatura de clusters de cada
+        imagem e o perfil médio ATCC. Quanto maior a similaridade, mais a distribuição de pixels da imagem
+        se parece com a distribuição média das ATCC resistentes.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Ranking</th>
+            <th>Imagem</th>
+            <th>Similaridade com ATCC</th>
+            <th>Comentário</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>534_240506-160510</td>
+            <td>98,62%</td>
+            <td>Mais parecida com o perfil médio ATCC no k=2.</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>ATCC27_240506-161129</td>
+            <td>94,94%</td>
+            <td>Referência resistente.</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>539_240506-160131</td>
+            <td>94,68%</td>
+            <td>Desconhecida com forte semelhança ao perfil resistente.</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>351_1_240506-160920</td>
+            <td>94,60%</td>
+            <td>Também se aproxima do padrão ATCC, apesar de já ter sido testada como sensível em outro ensaio.</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>508_240506-160326</td>
+            <td>94,44%</td>
+            <td>Perfil muito próximo ao grupo resistente.</td>
+          </tr>
+        </tbody>
+      </table>
+      <figure>
+        <img src="dados/analise_perfis_validacao_sensiveis_554A_559/figuras/0003_ranking_similaridade_atcc.png" alt="Ranking de similaridade com ATCC">
+        <figcaption>Ranking exploratório de similaridade com o perfil médio ATCC.</figcaption>
+      </figure>
+    </section>
+
+    <section class="section">
+      <h2>O que o Teste com k=4 Mostrou</h2>
+      <p>
+        O <code>k=4</code> foi executado como teste fixo para investigar subestruturas. Ele não superou o
+        <code>k=2</code> como separação principal: na validação 554A/559, o ARI caiu para <strong>0,392</strong>,
+        o NMI para <strong>0,467</strong> e a pureza global ficou em <strong>89,96%</strong>. A pureza ainda é
+        alta, mas o modelo fragmenta as ATCC entre clusters 0, 2 e 3, e um dos clusters fica vazio entre
+        os pixels rotulados.
+      </p>
+      <div class="note warning">
+        <p>
+          Interpretação: <code>k=4</code> pode ser útil para estudar subpopulações internas da colônia, mas
+          o <code>k=2</code> é mais claro quando o objetivo é separar dois perfis amplos: sensível versus
+          resistente/ATCC.
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Experimento Treino/Teste</h2>
+      <p>
+        Também foi criado um fluxo de treino/teste em <code>treino_teste_nao_supervisionado.py</code>. Nele,
+        uma ATCC e duas amostras esperadas como normais ficaram fora do ajuste do Min-Max, PCA, escolha de
+        <code>k</code> e K-Means. Depois, o modelo treinado foi aplicado nelas.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Imagem de teste</th>
+            <th>Esperado</th>
+            <th>Decisão</th>
+            <th>Acerto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>3491B_240506-155911</td>
+            <td>normal</td>
+            <td>ativa</td>
+            <td><span class="tag bad">não</span></td>
+          </tr>
+          <tr>
+            <td>351_1_240506-160920</td>
+            <td>normal</td>
+            <td>ativa</td>
+            <td><span class="tag bad">não</span></td>
+          </tr>
+          <tr>
+            <td>ATCC13_240506-161053</td>
+            <td>ativa</td>
+            <td>ativa</td>
+            <td><span class="tag good">sim</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Esse resultado ajudou a mostrar que o desenho treino/teste, com apenas uma ATCC retida e duas
+        amostras tratadas como normais, não era a melhor forma de sustentar a conclusão. Por isso, o próprio
+        script agora avisa que o fluxo foi descontinuado em favor da análise não supervisionada com
+        referência ATCC pós-clustering.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>Conceitos Técnicos em Mais Profundidade</h2>
+      <div class="grid cols-2">
+        <div>
+          <h3>Imagem hiperespectral</h3>
+          <p>
+            Diferente de uma imagem RGB, que tem três canais, uma imagem hiperespectral tem dezenas ou
+            centenas de bandas. Cada pixel guarda uma assinatura espectral. Em bactérias, essa assinatura
+            pode refletir diferenças de composição, crescimento, metabolismo, textura e interação com o
+            meio de cultura.
+          </p>
+        </div>
+        <div>
+          <h3>Reflectância</h3>
+          <p>
+            Reflectância é uma medida relativa: quanto da luz incidente é refletida pela amostra em cada
+            banda. Ela é mais comparável do que intensidade bruta, porque tenta remover a influência da
+            iluminação e do sensor.
+          </p>
+        </div>
+        <div>
+          <h3>Transformada de Hough Circular</h3>
+          <p>
+            A Hough Circular procura combinações de centro e raio que expliquem bordas circulares na imagem.
+            Cada ponto de borda vota em possíveis círculos; os círculos com votos suficientes são aceitos.
+            Por isso, parâmetros como <code>param1</code>, <code>param2</code> e <code>min_dist</code> controlam
+            diretamente limpeza versus sensibilidade.
+          </p>
+        </div>
+        <div>
+          <h3>Máscara ROI recuada</h3>
+          <p>
+            O recuo de 20 pixels remove regiões periféricas, onde há mistura entre bactéria, borda, sombra,
+            ágar e possíveis artefatos de segmentação. Isso aumenta a chance de o modelo aprender o espectro
+            do material biológico e não a geometria da placa.
+          </p>
+        </div>
+        <div>
+          <h3>Normalização Min-Max</h3>
+          <p>
+            A normalização não cria informação nova; ela coloca bandas em escalas comparáveis. No projeto,
+            a normalização global preserva diferenças relativas entre imagens, enquanto evita que bandas de
+            maior amplitude dominem a distância euclidiana do K-Means.
+          </p>
+        </div>
+        <div>
+          <h3>PCA</h3>
+          <p>
+            O PCA transforma bandas correlacionadas em componentes ortogonais. Em espectroscopia, bandas
+            vizinhas frequentemente carregam informações parecidas; por isso, o PCA ajuda a remover
+            redundância mantendo a maior parte do sinal.
+          </p>
+        </div>
+        <div>
+          <h3>K-Means</h3>
+          <p>
+            O K-Means procura centroides que minimizam a distância dos pontos ao centro do cluster. Ele é
+            simples e interpretável, mas depende de escala, formato dos grupos e escolha de <code>k</code>.
+            Por isso foram usados Min-Max, PCA, <code>n_init=20</code> e validação externa.
+          </p>
+        </div>
+        <div>
+          <h3>ARI, NMI e pureza</h3>
+          <p>
+            ARI mede concordância ajustada pelo acaso; NMI mede informação compartilhada entre clusters e
+            rótulos; pureza mede se cada cluster é dominado por uma classe. Juntas, essas métricas evitam
+            confiar apenas em visualização.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section conclusion">
+      <h2>Conclusão Técnica</h2>
+      <p>
+        O trabalho construiu um pipeline completo e coerente: calibração radiométrica, recorte de bandas
+        instáveis, segmentação circular da colônia, extração de espectros por pixel, normalização global,
+        PCA e K-Means não supervisionado. O resultado mais forte até o momento é o modelo com <code>k=2</code>,
+        validado com <code>554A</code> e <code>559</code> como sensíveis externos: ele apresentou pureza global
+        de 90,90%, ARI de 0,668 e NMI de 0,549.
+      </p>
+      <p>
+        A interpretação atual é que o cluster 1 representa um perfil semelhante às ATCC resistentes, enquanto
+        o cluster 0 representa um perfil sensível nas amostras 554A/559. Ainda assim, a conclusão deve ser
+        tratada como exploratória até ampliar o conjunto de amostras com rótulos clínicos confirmados,
+        principalmente sensíveis.
+      </p>
+    </section>
+  </main>
+</body>
+</html>
