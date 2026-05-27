@@ -28,6 +28,10 @@ KMEANS_RANDOM_STATE = 42
 PCA_VARIANCIA = 0.95
 RANDOM_STATE = 42
 MOSAICO_COLS = 4
+PROJECAO_MAX_AMOSTRAS = 10_000
+TSNE_MAX_AMOSTRAS = 5_000
+TSNE_PERPLEXITY = 30.0
+TSNE_MAX_ITER = 1_000
 
 _FIG_COUNTER = 0
 
@@ -630,6 +634,366 @@ def salvar_validacao_externa(
     print(df_resumo.to_string(index=False))
 
 
+def _indices_subamostra(n_total: int, max_amostras: int, random_state: int = RANDOM_STATE) -> np.ndarray:
+    if n_total <= max_amostras:
+        return np.arange(n_total)
+    return np.sort(np.random.default_rng(random_state).choice(n_total, size=max_amostras, replace=False))
+
+
+def rotulos_para_visualizacao(
+    fatias: dict[str, slice],
+    rotulos_extras: dict[str, str] | None = None,
+) -> np.ndarray:
+    rotulos_conhecidos = ler_rotulos_conhecidos(rotulos_extras=rotulos_extras)
+    n_total = max(sl.stop for sl in fatias.values())
+    rotulos_pixels = np.asarray(["desconhecido"] * n_total, dtype=object)
+
+    for nome, sl in fatias.items():
+        rotulo = rotulos_conhecidos.get(nome)
+        if rotulo is not None:
+            rotulos_pixels[sl] = rotulo
+
+    return rotulos_pixels
+
+
+def plotar_projecao_2d(
+    Z_2d: np.ndarray,
+    labels_clusters: np.ndarray,
+    rotulos_pixels: np.ndarray,
+    titulo_prefixo: str,
+    max_amostras: int = PROJECAO_MAX_AMOSTRAS,
+) -> None:
+    idx = _indices_subamostra(Z_2d.shape[0], max_amostras=max_amostras)
+    Z_sub = Z_2d[idx]
+    labels_sub = labels_clusters[idx]
+    rotulos_sub = rotulos_pixels[idx]
+    k = int(np.max(labels_clusters)) + 1 if labels_clusters.size else 1
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    cmap_k = _criar_cmap_discreta(max(2, k))
+
+    sc0 = axes[0].scatter(
+        Z_sub[:, 0],
+        Z_sub[:, 1],
+        c=labels_sub,
+        cmap=cmap_k,
+        vmin=-0.5,
+        vmax=k - 0.5,
+        s=4,
+        alpha=0.65,
+        linewidths=0,
+    )
+    axes[0].set_title(f"{titulo_prefixo} - clusters K-Means")
+    axes[0].set_xlabel("Componente 1")
+    axes[0].set_ylabel("Componente 2")
+    plt.colorbar(sc0, ax=axes[0], label="cluster")
+
+    rotulos_unicos = sorted(np.unique(rotulos_sub))
+    cores = plt.get_cmap("tab10")(np.linspace(0, 1, max(len(rotulos_unicos), 2)))
+    for i, rotulo in enumerate(rotulos_unicos):
+        mask = rotulos_sub == rotulo
+        axes[1].scatter(
+            Z_sub[mask, 0],
+            Z_sub[mask, 1],
+            c=[cores[i % len(cores)]],
+            s=4,
+            alpha=0.65,
+            linewidths=0,
+            label=str(rotulo),
+        )
+    axes[1].set_title(f"{titulo_prefixo} - rótulos de validação")
+    axes[1].set_xlabel("Componente 1")
+    axes[1].set_ylabel("Componente 2")
+    axes[1].legend(markerscale=3, fontsize=8)
+
+    plt.tight_layout()
+    _salvar_figura(fig, titulo_prefixo)
+
+
+def executar_tsne_2d(Z_total: np.ndarray, max_amostras: int = TSNE_MAX_AMOSTRAS) -> tuple[np.ndarray, np.ndarray]:
+    from sklearn.manifold import TSNE
+
+    idx = _indices_subamostra(Z_total.shape[0], max_amostras=max_amostras)
+    Z_sub = Z_total[idx]
+    perplexity = min(TSNE_PERPLEXITY, float(max(1, Z_sub.shape[0] - 1)))
+
+    try:
+        tsne = TSNE(
+            n_components=2,
+            perplexity=perplexity,
+            max_iter=TSNE_MAX_ITER,
+            random_state=RANDOM_STATE,
+            init="pca",
+            learning_rate="auto",
+        )
+    except TypeError:
+        tsne = TSNE(
+            n_components=2,
+            perplexity=perplexity,
+            n_iter=TSNE_MAX_ITER,
+            random_state=RANDOM_STATE,
+            init="pca",
+        )
+
+    return tsne.fit_transform(Z_sub), idx
+
+
+def plotar_tsne_2d(
+    Z_total: np.ndarray,
+    labels_clusters: np.ndarray,
+    rotulos_pixels: np.ndarray,
+) -> None:
+    Z_tsne, idx = executar_tsne_2d(Z_total)
+    plotar_projecao_2d(
+        Z_tsne,
+        labels_clusters[idx],
+        rotulos_pixels[idx],
+        "t-SNE 2D",
+        max_amostras=Z_tsne.shape[0],
+    )
+
+
+def salvar_distancias_euclidianas(
+    Z_total: np.ndarray,
+    labels_total: np.ndarray,
+    fatias: dict[str, slice],
+    kmeans: object,
+) -> None:
+    os.makedirs(CAMINHO_SAIDA_ANALISE, exist_ok=True)
+    distancias = kmeans.transform(Z_total)
+    dist_assinada = distancias[np.arange(Z_total.shape[0]), labels_total]
+
+    linhas_imagem: list[dict] = []
+    for nome, sl in sorted(fatias.items()):
+        dist_img = dist_assinada[sl]
+        labs_img = labels_total[sl]
+        linha = {
+            "imagem": nome,
+            "n_pixels": int(dist_img.shape[0]),
+            "dist_media_centroide_atribuido": float(np.mean(dist_img)),
+            "dist_mediana_centroide_atribuido": float(np.median(dist_img)),
+            "dist_desvio_centroide_atribuido": float(np.std(dist_img)),
+            "dist_min_centroide_atribuido": float(np.min(dist_img)),
+            "dist_max_centroide_atribuido": float(np.max(dist_img)),
+        }
+        for cid in range(kmeans.n_clusters):
+            mask = labs_img == cid
+            linha[f"cluster_{cid}_n_pixels"] = int(np.sum(mask))
+            linha[f"cluster_{cid}_dist_media"] = float(np.mean(dist_img[mask])) if np.any(mask) else float("nan")
+        linhas_imagem.append(linha)
+
+    linhas_cluster: list[dict] = []
+    for cid in range(kmeans.n_clusters):
+        mask = labels_total == cid
+        dist_cluster = dist_assinada[mask]
+        linhas_cluster.append(
+            {
+                "cluster": cid,
+                "n_pixels": int(np.sum(mask)),
+                "dist_media_centroide": float(np.mean(dist_cluster)) if dist_cluster.size else float("nan"),
+                "dist_mediana_centroide": float(np.median(dist_cluster)) if dist_cluster.size else float("nan"),
+                "dist_desvio_centroide": float(np.std(dist_cluster)) if dist_cluster.size else float("nan"),
+                "dist_min_centroide": float(np.min(dist_cluster)) if dist_cluster.size else float("nan"),
+                "dist_max_centroide": float(np.max(dist_cluster)) if dist_cluster.size else float("nan"),
+            }
+        )
+
+    linhas_centroides: list[dict] = []
+    centroides = np.asarray(kmeans.cluster_centers_)
+    for i in range(kmeans.n_clusters):
+        for j in range(i + 1, kmeans.n_clusters):
+            linhas_centroides.append(
+                {
+                    "cluster_a": i,
+                    "cluster_b": j,
+                    "distancia_euclidiana": float(np.linalg.norm(centroides[i] - centroides[j])),
+                }
+            )
+
+    pd.DataFrame(linhas_imagem).to_csv(
+        os.path.join(CAMINHO_SAIDA_ANALISE, "distancias_euclidianas_por_imagem.csv"),
+        index=False,
+    )
+    pd.DataFrame(linhas_cluster).to_csv(
+        os.path.join(CAMINHO_SAIDA_ANALISE, "distancias_euclidianas_por_cluster.csv"),
+        index=False,
+    )
+    pd.DataFrame(linhas_centroides).to_csv(
+        os.path.join(CAMINHO_SAIDA_ANALISE, "distancias_euclidianas_entre_centroides.csv"),
+        index=False,
+    )
+
+
+def analisar_centroides_bandas(
+    pca: object,
+    kmeans: object,
+    min_global: np.ndarray,
+    max_global: np.ndarray,
+    top_n: int = 20,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    os.makedirs(CAMINHO_SAIDA_ANALISE, exist_ok=True)
+
+    centroides_pca = np.asarray(kmeans.cluster_centers_, dtype=float)
+    centroides_norm = np.asarray(pca.inverse_transform(centroides_pca), dtype=float)
+    centroides_norm = np.clip(centroides_norm, 0.0, 1.0)
+
+    escala = np.asarray(max_global, dtype=float) - np.asarray(min_global, dtype=float)
+    centroides_refletancia = centroides_norm * escala + np.asarray(min_global, dtype=float)
+    n_clusters, n_bandas = centroides_norm.shape
+
+    linhas_centroides: list[dict] = []
+    for cid in range(n_clusters):
+        for banda_idx in range(n_bandas):
+            linhas_centroides.append(
+                {
+                    "cluster": cid,
+                    "banda_indice": banda_idx,
+                    "banda_numero": banda_idx + 1,
+                    "centroide_normalizado": float(centroides_norm[cid, banda_idx]),
+                    "centroide_refletancia_aprox": float(centroides_refletancia[cid, banda_idx]),
+                }
+            )
+
+    amplitude_norm = centroides_norm.max(axis=0) - centroides_norm.min(axis=0)
+    desvio_norm = centroides_norm.std(axis=0)
+    cluster_min = centroides_norm.argmin(axis=0)
+    cluster_max = centroides_norm.argmax(axis=0)
+    ordem_global = np.argsort(-amplitude_norm)
+
+    linhas_bandas: list[dict] = []
+    for ranking, banda_idx in enumerate(ordem_global, start=1):
+        linhas_bandas.append(
+            {
+                "ranking": ranking,
+                "banda_indice": int(banda_idx),
+                "banda_numero": int(banda_idx + 1),
+                "amplitude_entre_centroides_normalizada": float(amplitude_norm[banda_idx]),
+                "desvio_padrao_centroides_normalizado": float(desvio_norm[banda_idx]),
+                "cluster_menor_valor": int(cluster_min[banda_idx]),
+                "cluster_maior_valor": int(cluster_max[banda_idx]),
+                "menor_centroide_normalizado": float(centroides_norm[cluster_min[banda_idx], banda_idx]),
+                "maior_centroide_normalizado": float(centroides_norm[cluster_max[banda_idx], banda_idx]),
+                "diferenca_refletancia_aprox": float(
+                    centroides_refletancia[cluster_max[banda_idx], banda_idx]
+                    - centroides_refletancia[cluster_min[banda_idx], banda_idx]
+                ),
+            }
+        )
+
+    linhas_pares: list[dict] = []
+    for cluster_a in range(n_clusters):
+        for cluster_b in range(cluster_a + 1, n_clusters):
+            diff_norm = np.abs(centroides_norm[cluster_a] - centroides_norm[cluster_b])
+            diff_ref = np.abs(centroides_refletancia[cluster_a] - centroides_refletancia[cluster_b])
+            ordem_par = np.argsort(-diff_norm)
+            for ranking, banda_idx in enumerate(ordem_par, start=1):
+                linhas_pares.append(
+                    {
+                        "cluster_a": cluster_a,
+                        "cluster_b": cluster_b,
+                        "ranking_no_par": ranking,
+                        "banda_indice": int(banda_idx),
+                        "banda_numero": int(banda_idx + 1),
+                        "diferenca_normalizada": float(diff_norm[banda_idx]),
+                        "diferenca_refletancia_aprox": float(diff_ref[banda_idx]),
+                    }
+                )
+
+    df_centroides = pd.DataFrame(linhas_centroides)
+    df_bandas = pd.DataFrame(linhas_bandas)
+    df_pares = pd.DataFrame(linhas_pares)
+
+    caminho_centroides = os.path.join(CAMINHO_SAIDA_ANALISE, "centroides_clusters_bandas.csv")
+    caminho_bandas = os.path.join(CAMINHO_SAIDA_ANALISE, "bandas_influentes_centroides.csv")
+    caminho_pares = os.path.join(CAMINHO_SAIDA_ANALISE, "bandas_influentes_por_par_clusters.csv")
+
+    df_centroides.to_csv(caminho_centroides, index=False)
+    df_bandas.to_csv(caminho_bandas, index=False)
+    df_pares.to_csv(caminho_pares, index=False)
+
+    print(f"[SAIDA] {caminho_centroides}")
+    print(f"[SAIDA] {caminho_bandas}")
+    print(f"[SAIDA] {caminho_pares}")
+
+    top = df_bandas.head(min(top_n, len(df_bandas))).sort_values(
+        "amplitude_entre_centroides_normalizada",
+        ascending=True,
+    )
+    fig, ax = plt.subplots(figsize=(9, max(5, 0.32 * len(top) + 2)))
+    ax.barh(
+        top["banda_numero"].astype(str),
+        top["amplitude_entre_centroides_normalizada"],
+        color="darkorange",
+        alpha=0.85,
+    )
+    ax.set_xlabel("Amplitude entre centroides normalizados")
+    ax.set_ylabel("Banda espectral")
+    ax.set_title(f"Top {len(top)} bandas mais influentes na separação dos clusters")
+    ax.grid(axis="x", alpha=0.3)
+    plt.tight_layout()
+    _salvar_figura(fig, "top_bandas_influentes_centroides")
+
+    fig, ax = plt.subplots(figsize=(12, 5))
+    eixo_bandas = np.arange(1, n_bandas + 1)
+    for cid in range(n_clusters):
+        ax.plot(eixo_bandas, centroides_norm[cid], linewidth=1.6, label=f"Cluster {cid}")
+    for banda_numero in df_bandas.head(min(10, len(df_bandas)))["banda_numero"]:
+        ax.axvline(int(banda_numero), color="black", alpha=0.08, linewidth=1)
+    ax.set_xlabel("Banda espectral")
+    ax.set_ylabel("Centroide aproximado no espaço normalizado")
+    ax.set_title("Perfis espectrais aproximados dos centroides dos clusters")
+    ax.legend(fontsize=8)
+    ax.grid(alpha=0.25)
+    plt.tight_layout()
+    _salvar_figura(fig, "centroides_espectrais_clusters")
+
+    return df_centroides, df_bandas, df_pares
+
+
+def calcular_estabilidade_multiplos_k(
+    Z_total: np.ndarray,
+    fatias: dict[str, slice],
+    ks: list[int],
+    rotulos_extras: dict[str, str] | None = None,
+) -> pd.DataFrame:
+    from sklearn.cluster import KMeans
+    from sklearn.metrics import silhouette_score
+
+    idx_sil = _indices_subamostra(Z_total.shape[0], max_amostras=K_AMOSTRAS_ESCOLHA_K)
+    linhas: list[dict] = []
+
+    for k in ks:
+        km = KMeans(
+            n_clusters=int(k),
+            init="k-means++",
+            n_init=KMEANS_N_INIT,
+            random_state=KMEANS_RANDOM_STATE,
+            algorithm="lloyd",
+        )
+        labels = km.fit_predict(Z_total)
+        sil = float(silhouette_score(Z_total[idx_sil], labels[idx_sil], metric="euclidean"))
+        df_validacao, _, _ = calcular_validacao_externa(labels, fatias, int(k), rotulos_extras=rotulos_extras)
+        resumo = df_validacao.iloc[0].to_dict()
+        linhas.append(
+            {
+                "k": int(k),
+                "inercia": float(km.inertia_),
+                "silhouette": sil,
+                "ARI": resumo.get("ARI"),
+                "NMI": resumo.get("NMI"),
+                "pureza_global_clusters": resumo.get("pureza_global_clusters"),
+                "n_classes_validas": resumo.get("n_classes_validas"),
+                "avaliacao_confiavel": resumo.get("avaliacao_confiavel"),
+            }
+        )
+
+    df = pd.DataFrame(linhas)
+    caminho = os.path.join(CAMINHO_SAIDA_ANALISE, "estabilidade_por_k.csv")
+    df.to_csv(caminho, index=False)
+    print(f"[SAIDA] {caminho}")
+    return df
+
+
 def salvar_modelo_e_config(
     min_global: np.ndarray,
     max_global: np.ndarray,
@@ -653,6 +1017,16 @@ def salvar_modelo_e_config(
         "rotulos_usados_apenas_na_validacao_externa": CAMINHO_ROTULOS,
         "rotulos_validacao_extra": rotulos_validacao_extra or {},
         "metricas_validacao_externa": ["ARI", "NMI", "pureza_global_clusters", "pureza_por_cluster"],
+        "relatorios_adicionais": [
+            "estabilidade_por_k.csv",
+            "distancias_euclidianas_por_imagem.csv",
+            "distancias_euclidianas_por_cluster.csv",
+            "distancias_euclidianas_entre_centroides.csv",
+            "centroides_clusters_bandas.csv",
+            "bandas_influentes_centroides.csv",
+            "bandas_influentes_por_par_clusters.csv",
+            "PCA 2D e t-SNE 2D coloridos por cluster e rotulo",
+        ],
         "k_final": k_final,
         "k_criterio_final": resultado_k["criterio_final"],
         "k_fixo": k_fixo,
@@ -707,14 +1081,16 @@ def executar_analise(
     labels_total = kmeans.predict(Z_total)
     np.save(os.path.join(CAMINHO_SAIDA_ANALISE, "labels_total.npy"), labels_total)
 
-    print("\n[VALIDACAO] Calculando ARI, NMI e pureza dos clusters com rotulos conhecidos.")
-    df_validacao, df_pureza_clusters, df_imagens_rotuladas = calcular_validacao_externa(
-        labels_total,
+    print("\n[DISTANCIAS] Calculando distancias Euclidianas aos centroides.")
+    salvar_distancias_euclidianas(Z_total, labels_total, fatias, kmeans)
+
+    print("\n[ESTABILIDADE] Executando K-Means completo para diferentes valores de k.")
+    calcular_estabilidade_multiplos_k(
+        Z_total,
         fatias,
-        k_final,
+        ks=resultado_k["ks"],
         rotulos_extras=rotulos_validacao_extra,
     )
-    salvar_validacao_externa(df_validacao, df_pureza_clusters, df_imagens_rotuladas)
 
     print("\n[PERFIS] Calculando assinaturas por imagem e similaridade com ATCC.")
     df_perfis = calcular_perfis_por_imagem(labels_total, fatias, k_final)
@@ -725,6 +1101,23 @@ def executar_analise(
     plotar_mosaico_clusters(mapas, k_final)
     plotar_similaridade_atcc(df_perfis)
     plotar_perfis_clusters(df_perfis, k_final)
+
+    print("\n[PROJECAO] Gerando PCA 2D e t-SNE 2D coloridos por cluster e rotulo.")
+    rotulos_pixels = rotulos_para_visualizacao(fatias, rotulos_extras=rotulos_validacao_extra)
+    plotar_projecao_2d(Z_total[:, :2], labels_total, rotulos_pixels, "PCA 2D")
+    plotar_tsne_2d(Z_total, labels_total, rotulos_pixels)
+
+    print("\n[VALIDACAO] Calculando ARI, NMI e pureza dos clusters com rotulos conhecidos.")
+    df_validacao, df_pureza_clusters, df_imagens_rotuladas = calcular_validacao_externa(
+        labels_total,
+        fatias,
+        k_final,
+        rotulos_extras=rotulos_validacao_extra,
+    )
+    salvar_validacao_externa(df_validacao, df_pureza_clusters, df_imagens_rotuladas)
+
+    print("\n[CENTROIDES] Analisando bandas espectrais mais influentes entre centroides.")
+    analisar_centroides_bandas(pca, kmeans, min_global, max_global)
 
     salvar_modelo_e_config(
         min_global,

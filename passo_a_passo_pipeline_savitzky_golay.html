@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pipeline com Derivada de Primeira Ordem Savitzky-Golay</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #152033;
+      --muted: #667085;
+      --line: #d9deea;
+      --blue: #2258c7;
+      --blue-soft: #e8efff;
+      --green: #137a4b;
+      --green-soft: #e7f5ee;
+      --orange: #9a5b00;
+      --orange-soft: #fff3dc;
+      --purple: #6544b4;
+      --purple-soft: #efe9ff;
+      --red: #a33b3b;
+      --red-soft: #ffecec;
+      --radius: 18px;
+      --shadow: 0 10px 28px rgba(21, 32, 51, 0.08);
+      --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      line-height: 1.55;
+      margin: 0;
+    }
+
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 34px 28px;
+    }
+
+    main, .hero {
+      margin: 0 auto;
+      max-width: 1180px;
+    }
+
+    main {
+      padding: 28px;
+    }
+
+    h1, h2, h3 {
+      line-height: 1.15;
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      letter-spacing: -0.04em;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      margin-bottom: 14px;
+    }
+
+    h3 {
+      font-size: 1.04rem;
+      margin-bottom: 8px;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    code {
+      background: #eef1f7;
+      border: 1px solid #dfe4ee;
+      border-radius: 7px;
+      color: #26324a;
+      font-family: var(--mono);
+      font-size: 0.9em;
+      padding: 2px 6px;
+    }
+
+    ul {
+      margin: 10px 0 0;
+      padding-left: 20px;
+    }
+
+    li + li {
+      margin-top: 6px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 12px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 1.1rem;
+      margin-top: 12px;
+      max-width: 880px;
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .pill {
+      border-radius: 999px;
+      display: inline-flex;
+      font-size: 0.85rem;
+      font-weight: 800;
+      padding: 7px 12px;
+    }
+
+    .pill.blue {
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    .pill.green {
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .pill.orange {
+      background: var(--orange-soft);
+      color: var(--orange);
+    }
+
+    .pill.purple {
+      background: var(--purple-soft);
+      color: var(--purple);
+    }
+
+    .section {
+      margin-top: 28px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .grid.cols-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .grid.cols-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid.cols-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 2.1rem;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      margin-bottom: 10px;
+    }
+
+    .stat span, .small {
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .callout {
+      border-left: 5px solid var(--blue);
+      padding: 18px 20px;
+    }
+
+    .callout.success {
+      background: var(--green-soft);
+      border-color: var(--green);
+    }
+
+    .callout.warning {
+      background: var(--orange-soft);
+      border-color: var(--orange);
+    }
+
+    .flow {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      margin-top: 18px;
+    }
+
+    .flow-node {
+      align-items: center;
+      background: var(--blue-soft);
+      border: 1px solid #cddaff;
+      border-radius: 14px;
+      color: #183f92;
+      display: flex;
+      font-weight: 800;
+      justify-content: center;
+      min-height: 70px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .pipeline {
+      display: grid;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .step {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 72px 1fr;
+      position: relative;
+    }
+
+    .step:not(:last-child)::after {
+      background: var(--line);
+      content: "";
+      height: calc(100% + 16px);
+      left: 35px;
+      position: absolute;
+      top: 64px;
+      width: 2px;
+      z-index: 0;
+    }
+
+    .badge {
+      align-items: center;
+      background: var(--purple);
+      border: 6px solid var(--bg);
+      border-radius: 50%;
+      color: #fff;
+      display: flex;
+      font-size: 1.1rem;
+      font-weight: 900;
+      height: 72px;
+      justify-content: center;
+      position: relative;
+      width: 72px;
+      z-index: 1;
+    }
+
+    .step-content {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+
+    .step-content p {
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .io {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 1fr 1fr;
+      margin-top: 14px;
+    }
+
+    .io-box {
+      background: #f8faff;
+      border: 1px solid #e1e7f2;
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .io-title {
+      color: var(--muted);
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .status {
+      border-radius: 999px;
+      display: inline-block;
+      font-size: 0.78rem;
+      font-weight: 900;
+      padding: 5px 9px;
+      white-space: nowrap;
+    }
+
+    .done {
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .changed {
+      background: var(--purple-soft);
+      color: var(--purple);
+    }
+
+    .warning-status {
+      background: var(--orange-soft);
+      color: var(--orange);
+    }
+
+    .command {
+      background: #101828;
+      border-radius: 16px;
+      color: #e6edf7;
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      overflow-x: auto;
+      padding: 16px;
+      white-space: pre;
+    }
+
+    footer {
+      color: var(--muted);
+      margin: 28px 0 10px;
+      text-align: center;
+    }
+
+    @media (max-width: 900px) {
+      .grid.cols-4,
+      .grid.cols-3,
+      .grid.cols-2,
+      .flow,
+      .io {
+        grid-template-columns: 1fr;
+      }
+
+      .step {
+        grid-template-columns: 54px 1fr;
+      }
+
+      .badge {
+        border-width: 4px;
+        height: 54px;
+        width: 54px;
+      }
+
+      .step:not(:last-child)::after {
+        left: 26px;
+        top: 50px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="hero">
+      <h1>Pipeline com Savitzky-Golay e Derivada de Primeira Ordem</h1>
+      <p class="subtitle">
+        Nova versão metodológica do fluxo hiperespectral: a etapa de normalização Min-Max é substituída
+        por pré-processamento espectral com filtro Savitzky-Golay e derivada de primeira ordem, mantendo
+        a mesma sequência de PCA, K-Means, distâncias, visualizações, validação externa e análise dos centroides.
+      </p>
+      <div class="meta-row">
+        <span class="pill purple">Savitzky-Golay derivada 1</span>
+        <span class="pill blue">PCA + K-Means</span>
+        <span class="pill green">Não supervisionado</span>
+        <span class="pill orange">Validação externa no fim</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="grid cols-4">
+      <article class="card stat">
+        <strong>19</strong>
+        <span>amostras hiperespectrais processadas</span>
+      </article>
+      <article class="card stat">
+        <strong>206</strong>
+        <span>bandas por espectro após remoção de ruído</span>
+      </article>
+      <article class="card stat">
+        <strong>1ª</strong>
+        <span>derivada espectral aplicada banda a banda</span>
+      </article>
+      <article class="card stat">
+        <strong>2-10</strong>
+        <span>valores de k avaliados no K-Means</span>
+      </article>
+    </section>
+
+    <section class="section card callout success">
+      <h2>O que muda em relação ao pipeline anterior</h2>
+      <p>
+        No pipeline anterior, os espectros eram colocados em uma mesma escala usando <code>Min-Max</code>.
+        Nesta versão, a etapa central passa a ser a derivada de primeira ordem com
+        <code>Savitzky-Golay</code>. A intenção é realçar mudanças de inclinação no espectro,
+        reduzir o efeito de deslocamento de linha de base e destacar regiões onde a curva espectral
+        muda de comportamento entre grupos.
+      </p>
+    </section>
+
+    <section class="section card callout warning">
+      <h2>Ponto metodológico importante</h2>
+      <p>
+        Esta versão não usa rótulos para treinar. A derivada, o PCA, a escolha de <code>k</code> e o
+        K-Means continuam sendo calculados sem rótulos. Os rótulos entram apenas depois do agrupamento,
+        na validação externa, como ARI, NMI, pureza e visualização por classe.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>Fluxo Geral</h2>
+      <div class="flow">
+        <div class="flow-node">Dados brutos HSI</div>
+        <div class="flow-node">Calibração + ROI</div>
+        <div class="flow-node">Savitzky-Golay derivada 1</div>
+        <div class="flow-node">PCA + K-Means</div>
+        <div class="flow-node">Métricas, validação e centroides</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Etapas Detalhadas</h2>
+      <div class="pipeline">
+        <article class="step">
+          <div class="badge">1</div>
+          <div class="step-content">
+            <h3>Leitura das imagens brutas e calibração radiométrica</h3>
+            <p>
+              O script de processamento lê os cubos hiperespectrais ENVI e usa as referências
+              <code>DARKREF</code> e <code>WHITEREF</code> para converter os dados brutos em reflectância.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                <code>dados/img_original/**/capture/*.hdr</code><br />
+                <code>*.raw</code>, <code>DARKREF_*</code>, <code>WHITEREF_*</code>
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                Cubo calibrado em reflectância, pronto para limpeza espectral.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">2</div>
+          <div class="step-content">
+            <h3>Remoção de bandas ruidosas</h3>
+            <p>
+              As bandas das extremidades são removidas antes da derivada. Isso é essencial porque derivadas
+              amplificam ruído, principalmente nas regiões onde o sensor já é instável.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                Cubo calibrado com todas as bandas.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                Cubo limpo com <code>206</code> bandas por pixel.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">3</div>
+          <div class="step-content">
+            <h3>Detecção da colônia e recorte da ROI</h3>
+            <p>
+              A colônia é detectada por Hough Circle Transform. O raio é reduzido para evitar borda,
+              ágar e pixels que poderiam distorcer o espectro médio da bactéria.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                Cubo hiperespectral limpo.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>mascara_roi.npy</code> e visualizações da ROI por imagem.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">4</div>
+          <div class="step-content">
+            <h3>Exportação dos espectros por pixel</h3>
+            <p>
+              Cada pixel dentro da ROI vira uma linha de uma matriz. Cada coluna continua representando
+              uma banda espectral, ainda em reflectância antes da derivada.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                Cubo 3D limpo + máscara ROI.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>dados/img_processadas/&lt;amostra&gt;/espectros.csv</code><br />
+                <code>dados/img_processadas/&lt;amostra&gt;/mascara_roi.npy</code>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">5</div>
+          <div class="step-content">
+            <h3>Leitura das amostras recortadas</h3>
+            <p>
+              A análise lê os <code>espectros.csv</code> e confere se o número de espectros bate com
+              os pixels ativos na máscara da ROI.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                Arquivos de <code>dados/img_processadas/</code>
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                Espectros e máscaras validados por imagem.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">6</div>
+          <div class="step-content">
+            <h3>Aplicação do Savitzky-Golay com derivada de primeira ordem</h3>
+            <p>
+              Aqui entra a principal troca metodológica: em vez de aplicar <code>Min-Max</code>, cada
+              espectro é suavizado e derivado ao longo do eixo das bandas. A derivada de primeira ordem
+              mede a variação entre bandas vizinhas e destaca inclinações da curva espectral.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                Espectros por pixel em reflectância, com <code>206</code> bandas.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                Espectros derivados: <code>X_derivada_sg</code>, mantendo uma coluna por banda processada.
+              </div>
+            </div>
+            <ul>
+              <li><code>window_length</code>: janela ímpar, por exemplo <code>11</code> ou <code>15</code>.</li>
+              <li><code>polyorder</code>: ordem do polinômio, por exemplo <code>2</code> ou <code>3</code>.</li>
+              <li><code>deriv=1</code>: define derivada de primeira ordem.</li>
+              <li><code>axis=1</code>: aplica a derivada ao longo das bandas espectrais.</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">7</div>
+          <div class="step-content">
+            <h3>Concatenação global e PCA</h3>
+            <p>
+              Os espectros derivados de todas as imagens são empilhados em uma matriz global.
+              O PCA é ajustado nessa matriz derivada, preservando 95% da variância.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                Matriz global <code>X_derivada_total</code>.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                Matriz reduzida <code>Z_total</code> e modelo PCA treinado no espaço derivado.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">8</div>
+          <div class="step-content">
+            <h3>Determinação do número de clusters</h3>
+            <p>
+              O K-Means é executado para diferentes valores de <code>k</code>. São calculados inércia
+              para o método do cotovelo e silhouette score para avaliar separação interna dos clusters.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                <code>Z_total</code> obtido a partir dos espectros derivados.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>escolha_k.csv</code> e figura <code>escolha_k</code>.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">9</div>
+          <div class="step-content">
+            <h3>Treinamento final do K-Means</h3>
+            <p>
+              Com o <code>k</code> escolhido, o K-Means é treinado no espaço PCA dos espectros derivados.
+              A distância usada para atribuir pixels aos centroides continua sendo Euclidiana.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                <code>Z_total</code> + valor final de <code>k</code>.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>labels_total.npy</code> e modelo K-Means salvo.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">10</div>
+          <div class="step-content">
+            <h3>Distância Euclidiana aos centroides</h3>
+            <p>
+              Para cada pixel, é calculada a distância até o centroide do cluster atribuído.
+              Essa etapa ajuda a identificar clusters compactos, amostras heterogêneas e possíveis outliers.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                <code>Z_total</code>, <code>labels_total</code> e centroides do K-Means.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>distancias_euclidianas_por_imagem.csv</code><br />
+                <code>distancias_euclidianas_por_cluster.csv</code><br />
+                <code>distancias_euclidianas_entre_centroides.csv</code>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">11</div>
+          <div class="step-content">
+            <h3>Estabilidade em múltiplos valores de k</h3>
+            <p>
+              O K-Means completo é repetido para vários valores de <code>k</code>, permitindo comparar
+              se a derivada melhora ou piora a estabilidade dos agrupamentos em relação ao pipeline Min-Max.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                <code>Z_total</code> derivado e intervalo de <code>k</code>.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>estabilidade_por_k.csv</code>, com inércia, silhouette, ARI, NMI e pureza.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">12</div>
+          <div class="step-content">
+            <h3>Perfis por imagem e similaridade com ATCC</h3>
+            <p>
+              Cada imagem recebe uma assinatura de clusters. A assinatura é comparada ao perfil médio
+              das ATCC para gerar um ranking exploratório de similaridade.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                Distribuição dos clusters por imagem.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>perfis_clusters_por_imagem.csv</code><br />
+                <code>perfil_medio_atcc.csv</code><br />
+                Figura <code>ranking_similaridade_atcc</code>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">13</div>
+          <div class="step-content">
+            <h3>Visualizações espaciais e projeções 2D</h3>
+            <p>
+              São gerados mapas dos clusters nas ROIs e projeções PCA 2D/t-SNE 2D. A comparação visual
+              mostra se a derivada cria grupos mais separados ou apenas aumenta a fragmentação.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                <code>labels_total</code>, máscaras ROI, PCA e rótulos de validação.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>mosaico_clusters_k_*</code><br />
+                <code>PCA 2D</code><br />
+                <code>t-SNE 2D</code><br />
+                <code>assinaturas_clusters_por_imagem</code>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">14</div>
+          <div class="step-content">
+            <h3>Validação externa com rótulos conhecidos</h3>
+            <p>
+              Depois do agrupamento, os rótulos conhecidos entram para medir o alinhamento dos clusters
+              com as classes de referência. Essa continua sendo a última etapa avaliativa do agrupamento.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                <code>labels_total.npy</code> + <code>dados/rotulos.csv</code> + rótulos extras de validação.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>metricas_validacao_externa.csv</code><br />
+                <code>pureza_clusters.csv</code><br />
+                <code>metricas_imagens_rotuladas.csv</code>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">15</div>
+          <div class="step-content">
+            <h3>Análise dos centroides e bandas influentes</h3>
+            <p>
+              Os centroides do K-Means são interpretados no espaço das bandas derivadas. Em vez de mostrar
+              bandas com maior reflectância, essa etapa identifica regiões onde a inclinação espectral
+              mais difere entre clusters.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                PCA, K-Means e matriz derivada por Savitzky-Golay.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>centroides_clusters_bandas.csv</code><br />
+                <code>bandas_influentes_centroides.csv</code><br />
+                <code>bandas_influentes_por_par_clusters.csv</code><br />
+                Figuras dos centroides derivados e bandas mais influentes.
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section grid cols-2">
+      <article class="card">
+        <h2>Equivalente conceitual da nova etapa</h2>
+        <p class="small">
+          A lógica abaixo representa a substituição de Min-Max pela derivada. Ela deve ser aplicada
+          a cada matriz <code>X</code> de espectros por imagem.
+        </p>
+        <div class="command">from scipy.signal import savgol_filter
+
+X_derivada = savgol_filter(
+    X,
+    window_length=11,
+    polyorder=2,
+    deriv=1,
+    delta=1.0,
+    axis=1,
+    mode="interp",
+)</div>
+      </article>
+
+      <article class="card">
+        <h2>Nome sugerido para a execução</h2>
+        <p class="small">
+          Para comparar corretamente com o pipeline Min-Max, esta versão deve salvar em uma pasta própria.
+        </p>
+        <div class="command">dados/analise_perfis_savgol_derivada1</div>
+      </article>
+    </section>
+
+    <section class="section card">
+      <h2>Checklist metodológico da versão Savitzky-Golay</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Status nesta proposta</th>
+            <th>Observação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Calibração com dark/white reference</td>
+            <td><span class="status done">mantido</span></td>
+            <td>Continua antes da remoção de bandas e da ROI.</td>
+          </tr>
+          <tr>
+            <td>Remoção de bandas ruidosas</td>
+            <td><span class="status done">mantido</span></td>
+            <td>Mais importante ainda, pois derivada amplifica ruído.</td>
+          </tr>
+          <tr>
+            <td>ROI circular e exportação dos espectros</td>
+            <td><span class="status done">mantido</span></td>
+            <td>Mesma lógica do pipeline anterior.</td>
+          </tr>
+          <tr>
+            <td>Normalização Min-Max</td>
+            <td><span class="status changed">substituído</span></td>
+            <td>Entra Savitzky-Golay com derivada de primeira ordem.</td>
+          </tr>
+          <tr>
+            <td>PCA</td>
+            <td><span class="status done">mantido</span></td>
+            <td>Agora ajustado sobre os espectros derivados.</td>
+          </tr>
+          <tr>
+            <td>K-Means e diferentes valores de k</td>
+            <td><span class="status done">mantido</span></td>
+            <td>Permite comparar estabilidade com o pipeline Min-Max.</td>
+          </tr>
+          <tr>
+            <td>Distância Euclidiana</td>
+            <td><span class="status done">mantido</span></td>
+            <td>Interpretada no espaço PCA dos espectros derivados.</td>
+          </tr>
+          <tr>
+            <td>PCA 2D e t-SNE 2D</td>
+            <td><span class="status done">mantido</span></td>
+            <td>Usados para visualizar se a derivada melhora a separação.</td>
+          </tr>
+          <tr>
+            <td>Validação externa</td>
+            <td><span class="status done">mantido no fim</span></td>
+            <td>ARI, NMI e pureza continuam pós-hoc.</td>
+          </tr>
+          <tr>
+            <td>Análise dos centroides</td>
+            <td><span class="status done">mantido após validação</span></td>
+            <td>Agora destaca bandas onde a inclinação espectral diferencia os clusters.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section card callout warning">
+      <h2>Como comparar com o pipeline Min-Max</h2>
+      <p>
+        A comparação deve olhar os mesmos critérios: escolha de <code>k</code>, silhouette, ARI, NMI,
+        pureza, distância Euclidiana, mapas de clusters, PCA/t-SNE e bandas influentes. A derivada só
+        é melhor se aumentar a separação útil sem fragmentar excessivamente as amostras.
+      </p>
+    </section>
+
+    <footer>
+      Documento metodológico para a versão com Savitzky-Golay e derivada de primeira ordem.
+    </footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Passo a Passo do Pipeline Hiperespectral</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --panel: #ffffff;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d7dce8;
+      --blue: #2457c5;
+      --blue-soft: #e8efff;
+      --green: #157a4f;
+      --green-soft: #e7f5ef;
+      --orange: #9a5b00;
+      --orange-soft: #fff3dc;
+      --red: #a33b3b;
+      --red-soft: #ffecec;
+      --purple: #6841b8;
+      --purple-soft: #efe9ff;
+      --shadow: 0 10px 30px rgba(23, 32, 51, 0.08);
+      --radius: 18px;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      line-height: 1.55;
+    }
+
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 34px 28px;
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    h1, h2, h3 {
+      line-height: 1.15;
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      letter-spacing: -0.04em;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      margin-bottom: 14px;
+    }
+
+    h3 {
+      font-size: 1.04rem;
+      margin-bottom: 8px;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    code {
+      background: #eef1f7;
+      border: 1px solid #dfe4ee;
+      border-radius: 7px;
+      color: #26324a;
+      font-family: var(--mono);
+      font-size: 0.9em;
+      padding: 2px 6px;
+    }
+
+    .hero {
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 1.1rem;
+      margin-top: 12px;
+      max-width: 840px;
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .pill {
+      align-items: center;
+      border-radius: 999px;
+      display: inline-flex;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 7px 12px;
+    }
+
+    .pill.blue {
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    .pill.green {
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .pill.orange {
+      background: var(--orange-soft);
+      color: var(--orange);
+    }
+
+    .pill.purple {
+      background: var(--purple-soft);
+      color: var(--purple);
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .grid.cols-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .grid.cols-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid.cols-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px;
+    }
+
+    .stat {
+      min-height: 122px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 2.2rem;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      margin-bottom: 10px;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .section {
+      margin-top: 28px;
+    }
+
+    .callout {
+      border-left: 5px solid var(--blue);
+      padding: 18px 20px;
+    }
+
+    .callout.warning {
+      border-color: var(--orange);
+      background: var(--orange-soft);
+    }
+
+    .callout.success {
+      border-color: var(--green);
+      background: var(--green-soft);
+    }
+
+    .pipeline {
+      display: grid;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .step {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 72px 1fr;
+      position: relative;
+    }
+
+    .step:not(:last-child)::after {
+      background: var(--line);
+      content: "";
+      height: calc(100% + 16px);
+      left: 35px;
+      position: absolute;
+      top: 64px;
+      width: 2px;
+      z-index: 0;
+    }
+
+    .badge {
+      align-items: center;
+      background: var(--blue);
+      border: 6px solid var(--bg);
+      border-radius: 50%;
+      color: #fff;
+      display: flex;
+      font-size: 1.1rem;
+      font-weight: 800;
+      height: 72px;
+      justify-content: center;
+      position: relative;
+      width: 72px;
+      z-index: 1;
+    }
+
+    .step-content {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+
+    .step-content p {
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .io {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 1fr 1fr;
+      margin-top: 14px;
+    }
+
+    .io-box {
+      background: #f8faff;
+      border: 1px solid #e1e7f2;
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .io-title {
+      color: var(--muted);
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    ul {
+      margin: 10px 0 0;
+      padding-left: 20px;
+    }
+
+    li + li {
+      margin-top: 6px;
+    }
+
+    .flow {
+      align-items: stretch;
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      margin-top: 18px;
+    }
+
+    .flow-node {
+      align-items: center;
+      background: var(--blue-soft);
+      border: 1px solid #cddaff;
+      border-radius: 14px;
+      color: #183f92;
+      display: flex;
+      font-weight: 800;
+      justify-content: center;
+      min-height: 70px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 12px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .status {
+      border-radius: 999px;
+      display: inline-block;
+      font-size: 0.78rem;
+      font-weight: 800;
+      padding: 5px 9px;
+      white-space: nowrap;
+    }
+
+    .done {
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .partial {
+      background: var(--orange-soft);
+      color: var(--orange);
+    }
+
+    .later {
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .command {
+      background: #101828;
+      border-radius: 16px;
+      color: #e6edf7;
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      overflow-x: auto;
+      padding: 16px;
+      white-space: pre;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    footer {
+      color: var(--muted);
+      margin: 28px 0 10px;
+      text-align: center;
+    }
+
+    @media (max-width: 900px) {
+      .grid.cols-4,
+      .grid.cols-3,
+      .grid.cols-2,
+      .io,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      .step {
+        grid-template-columns: 54px 1fr;
+      }
+
+      .badge {
+        border-width: 4px;
+        height: 54px;
+        width: 54px;
+      }
+
+      .step:not(:last-child)::after {
+        left: 26px;
+        top: 50px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="hero">
+      <h1>Passo a Passo do Pipeline Hiperespectral</h1>
+      <p class="subtitle">
+        Sequência visual do processamento das imagens SWIR, agrupamento não supervisionado com K-Means,
+        validação externa e geração de relatórios para análise das cepas bacterianas.
+      </p>
+      <div class="meta-row">
+        <span class="pill blue">K-Means não supervisionado</span>
+        <span class="pill green">PCA e t-SNE</span>
+        <span class="pill orange">ARI, NMI e pureza</span>
+        <span class="pill purple">Distância Euclidiana</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="grid cols-4">
+      <article class="card stat">
+        <strong>19</strong>
+        <span>amostras hiperespectrais processadas</span>
+      </article>
+      <article class="card stat">
+        <strong>206</strong>
+        <span>bandas por espectro após remoção de ruído</span>
+      </article>
+      <article class="card stat">
+        <strong>288k</strong>
+        <span>pixels de ROI analisados aproximadamente</span>
+      </article>
+      <article class="card stat">
+        <strong>2-10</strong>
+        <span>valores de k avaliados no K-Means</span>
+      </article>
+    </section>
+
+    <section class="section card callout success">
+      <h2>Leitura rápida</h2>
+      <p>
+        O fluxo atual usa as amostras recortadas geradas por <code>processamento.py</code>,
+        aplica normalização Min-Max global, reduz dimensionalidade com PCA, avalia diferentes
+        valores de <code>k</code>, treina K-Means, calcula métricas externas e gera visualizações
+        espaciais e 2D. Os rótulos entram apenas na validação externa e nas visualizações por classe,
+        nunca no treinamento do K-Means.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>Fluxo Geral</h2>
+      <div class="flow">
+        <div class="flow-node">Dados brutos HSI</div>
+        <div class="flow-node">Pré-processamento e ROI</div>
+        <div class="flow-node">Min-Max + PCA</div>
+        <div class="flow-node">K-Means e escolha de k</div>
+        <div class="flow-node">Métricas e visualizações</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Etapas Detalhadas</h2>
+      <div class="pipeline">
+        <article class="step">
+          <div class="badge">1</div>
+          <div class="step-content">
+            <h3>Leitura das imagens brutas e calibração radiométrica</h3>
+            <p>
+              O script <code>processamento.py</code> lê os cubos hiperespectrais ENVI e seus arquivos
+              de referência <code>DARKREF</code> e <code>WHITEREF</code>. A imagem é calibrada para reflectância.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                <code>dados/img_original/**/capture/*.hdr</code><br />
+                <code>*.raw</code>, <code>DARKREF_*</code>, <code>WHITEREF_*</code>
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                Cubos calibrados em memória, com reflectância limitada entre 0 e 1.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">2</div>
+          <div class="step-content">
+            <h3>Remoção de bandas ruidosas</h3>
+            <p>
+              São removidas as bandas nas extremidades do espectro, onde o sensor tende a ter maior ruído.
+              No código atual, são removidas 25 bandas iniciais e 25 finais.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                Cubo calibrado com todas as bandas originais.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                Cubo limpo com <code>206</code> bandas por pixel.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">3</div>
+          <div class="step-content">
+            <h3>Detecção da colônia e recorte da ROI</h3>
+            <p>
+              A ROI circular é detectada com Hough Circle Transform. O raio é reduzido para evitar bordas
+              e ágar, mantendo o miolo da colônia bacteriana.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                Cubo hiperespectral limpo.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>mascara_roi.npy</code> por imagem e visualizações da ROI.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">4</div>
+          <div class="step-content">
+            <h3>Exportação dos espectros por pixel</h3>
+            <p>
+              Cada pixel dentro da ROI vira uma linha de uma matriz 2D. Cada coluna representa uma banda
+              espectral.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                Cubo 3D limpo + máscara ROI.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>dados/img_processadas/&lt;amostra&gt;/espectros.csv</code><br />
+                <code>dados/img_processadas/&lt;amostra&gt;/mascara_roi.npy</code>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">5</div>
+          <div class="step-content">
+            <h3>Leitura das amostras recortadas</h3>
+            <p>
+              O script de análise lê os <code>espectros.csv</code> e verifica se o número de linhas bate
+              com o número de pixels ativos na máscara.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                Arquivos de <code>dados/img_processadas/</code>
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                Dicionários de espectros e máscaras validados.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">6</div>
+          <div class="step-content">
+            <h3>Normalização Min-Max global</h3>
+            <p>
+              Todos os pixels de todas as imagens são usados para calcular o mínimo e máximo global por banda.
+              Depois, cada espectro é escalado para o intervalo <code>[0, 1]</code>.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                Espectros 2D por imagem.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                Espectros normalizados + <code>min_global.npy</code> e <code>max_global.npy</code>.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">7</div>
+          <div class="step-content">
+            <h3>Concatenação global e PCA</h3>
+            <p>
+              Os pixels de todas as imagens são empilhados em <code>X_total</code>. Em seguida, o PCA reduz
+              a dimensionalidade preservando 95% da variância.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                Matriz <code>X_total</code> com todos os pixels normalizados.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                Matriz reduzida <code>Z_total</code> e modelo PCA salvo em <code>modelo.pkl</code>.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">8</div>
+          <div class="step-content">
+            <h3>Determinação do número de clusters</h3>
+            <p>
+              O K-Means é executado para vários valores de <code>k</code>. Para cada valor, são calculadas
+              a inércia do método do cotovelo e o silhouette score.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                <code>Z_total</code> ou subamostra de pixels.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>escolha_k.csv</code> e figura <code>escolha_k</code>.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">9</div>
+          <div class="step-content">
+            <h3>Treinamento final do K-Means</h3>
+            <p>
+              O K-Means final é treinado no espaço PCA com o <code>k</code> escolhido ou forçado via
+              <code>--k-fixo</code>. O algoritmo usa distância Euclidiana para associar cada pixel ao centroide
+              mais próximo.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                Matriz <code>Z_total</code> e valor final de <code>k</code>.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>labels_total.npy</code> e K-Means salvo em <code>modelo.pkl</code>.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">10</div>
+          <div class="step-content">
+            <h3>Distância Euclidiana como métrica de similaridade</h3>
+            <p>
+              O pipeline salva distâncias dos pixels aos centroides atribuídos e as distâncias entre os
+              centroides dos clusters.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                <code>Z_total</code>, <code>labels_total</code> e centroides do K-Means.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>distancias_euclidianas_por_imagem.csv</code><br />
+                <code>distancias_euclidianas_por_cluster.csv</code><br />
+                <code>distancias_euclidianas_entre_centroides.csv</code>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">11</div>
+          <div class="step-content">
+            <h3>Estabilidade dos agrupamentos em múltiplos k</h3>
+            <p>
+              O K-Means completo é executado em diferentes valores de <code>k</code> e salva métricas para
+              comparar estabilidade e qualidade dos agrupamentos.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                <code>Z_total</code> e intervalo de <code>k</code>.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>estabilidade_por_k.csv</code>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">12</div>
+          <div class="step-content">
+            <h3>Perfis por imagem e similaridade com ATCC</h3>
+            <p>
+              Cada imagem recebe uma assinatura com a fração de pixels em cada cluster. Depois, essa assinatura
+              é comparada ao perfil médio das ATCC.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                Distribuição de clusters por imagem.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>perfis_clusters_por_imagem.csv</code><br />
+                <code>perfil_medio_atcc.csv</code><br />
+                Figura <code>ranking_similaridade_atcc</code>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">13</div>
+          <div class="step-content">
+            <h3>Visualizações espaciais e projeções 2D</h3>
+            <p>
+              São gerados mapas espaciais dos clusters nas ROIs e projeções PCA 2D/t-SNE 2D, coloridas por
+              cluster e por rótulo de validação.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                <code>labels_total</code>, máscaras ROI e rótulos de validação.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>mosaico_clusters_k_*</code><br />
+                <code>PCA 2D</code><br />
+                <code>t-SNE 2D</code><br />
+                <code>assinaturas_clusters_por_imagem</code>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">14</div>
+          <div class="step-content">
+            <h3>Validação externa com rótulos conhecidos</h3>
+            <p>
+              Os rótulos são usados somente depois do K-Means, para calcular ARI, NMI e pureza dos clusters.
+              Eles não são usados no treinamento.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                <code>labels_total.npy</code> + <code>dados/rotulos.csv</code> + rótulos extras de validação.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>metricas_validacao_externa.csv</code><br />
+                <code>pureza_clusters.csv</code><br />
+                <code>metricas_imagens_rotuladas.csv</code>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="step">
+          <div class="badge">15</div>
+          <div class="step-content">
+            <h3>Análise dos centroides e bandas influentes</h3>
+            <p>
+              Os centroides do K-Means são trazidos do espaço PCA de volta para o espaço aproximado das bandas.
+              Depois, o pipeline mede quais bandas apresentam maior diferença entre os centroides dos clusters.
+            </p>
+            <div class="io">
+              <div class="io-box">
+                <span class="io-title">Entrada</span>
+                PCA treinado, centroides do K-Means, <code>min_global.npy</code> e <code>max_global.npy</code>.
+              </div>
+              <div class="io-box">
+                <span class="io-title">Saída</span>
+                <code>centroides_clusters_bandas.csv</code><br />
+                <code>bandas_influentes_centroides.csv</code><br />
+                <code>bandas_influentes_por_par_clusters.csv</code><br />
+                Figuras dos centroides e das bandas mais influentes.
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section card">
+      <h2>Checklist do pipeline metodológico</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Item do projeto</th>
+              <th>Status</th>
+              <th>Onde aparece</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Leitura dos dados hiperespectrais SWIR</td>
+              <td><span class="status done">feito</span></td>
+              <td><code>processamento.py</code></td>
+            </tr>
+            <tr>
+              <td>Calibração com dark/white reference</td>
+              <td><span class="status done">feito</span></td>
+              <td><code>calibrate_reflectance()</code></td>
+            </tr>
+            <tr>
+              <td>Remoção de bandas ruidosas</td>
+              <td><span class="status done">feito</span></td>
+              <td><code>remover_bandas_ruidosas_refletancia()</code></td>
+            </tr>
+            <tr>
+              <td>SNV e Savitzky-Golay</td>
+              <td><span class="status later">posterior</span></td>
+              <td>Será implementado futuramente, conforme decisão do projeto.</td>
+            </tr>
+            <tr>
+              <td>Normalização Min-Max</td>
+              <td><span class="status done">feito</span></td>
+              <td><code>aplicar_minmax_global()</code></td>
+            </tr>
+            <tr>
+              <td>K-Means com diferentes valores de k</td>
+              <td><span class="status done">feito</span></td>
+              <td><code>avaliar_k()</code> e <code>estabilidade_por_k.csv</code></td>
+            </tr>
+            <tr>
+              <td>Cotovelo e Silhouette Score</td>
+              <td><span class="status done">feito</span></td>
+              <td><code>escolha_k.csv</code> e figura <code>escolha_k</code></td>
+            </tr>
+            <tr>
+              <td>Distância Euclidiana como similaridade</td>
+              <td><span class="status done">feito</span></td>
+              <td>Interna no K-Means + CSVs de distâncias Euclidianas.</td>
+            </tr>
+            <tr>
+              <td>PCA 2D e t-SNE 2D</td>
+              <td><span class="status done">feito</span></td>
+              <td>Figuras <code>PCA 2D</code> e <code>t-SNE 2D</code></td>
+            </tr>
+            <tr>
+              <td>Colorir por clusters e por rótulos reais</td>
+              <td><span class="status done">feito</span></td>
+              <td>Gráficos 2D com dois painéis: cluster e rótulo de validação.</td>
+            </tr>
+            <tr>
+              <td>ARI, NMI e pureza</td>
+              <td><span class="status done">feito</span></td>
+              <td><code>metricas_validacao_externa.csv</code> e <code>pureza_clusters.csv</code></td>
+            </tr>
+            <tr>
+              <td>Análise de centroides / bandas importantes</td>
+              <td><span class="status done">feito</span></td>
+              <td><code>bandas_influentes_centroides.csv</code> e figuras dos centroides espectrais.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section grid cols-2">
+      <article class="card">
+        <h2>Comando principal</h2>
+        <p class="small">
+          Roda o pipeline atual com validação externa usando <code>554A_24*</code> e
+          <code>559_240506*</code> como sensíveis.
+        </p>
+        <div class="command">/Users/lucianafreitas/miniconda3/envs/bactera/bin/python analise_perfis_validacao_sensiveis.py</div>
+      </article>
+
+      <article class="card">
+        <h2>Comando com k fixo</h2>
+        <p class="small">
+          Roda a mesma análise, mas força um valor específico de <code>k</code>.
+        </p>
+        <div class="command">/Users/lucianafreitas/miniconda3/envs/bactera/bin/python analise_perfis_validacao_sensiveis.py --k-fixo 4 --saida dados/analise_perfis_validacao_sensiveis_554A_559_k4</div>
+      </article>
+    </section>
+
+    <section class="section card callout warning">
+      <h2>Observação metodológica</h2>
+      <p>
+        O agrupamento permanece não supervisionado: os rótulos não entram na normalização, PCA, escolha de
+        <code>k</code> nem treinamento do K-Means. Eles são usados apenas depois, para validação externa,
+        cálculo de ARI/NMI/pureza e visualização por classe.
+      </p>
+    </section>
+
+    <footer>
+      Arquivo gerado para documentação visual do pipeline de análise hiperespectral.
+    </footer>
+  </main>
+</body>
+</html>
